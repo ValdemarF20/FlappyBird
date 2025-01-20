@@ -1,8 +1,11 @@
 import os
 import random
+import re
 
+import matplotlib.pyplot as plt
 import neat
 import pygame
+import numpy as np
 
 pygame.init()
 
@@ -12,7 +15,7 @@ STAT_FONT = pygame.font.SysFont("comicsans", 50)
 SCREEN_WIDHT = 600
 SCREEN_HEIGHT = 800
 FLOOR = 730
-GAME_TICK_SPEED = 30
+GAME_TICK_SPEED = 120
 OBJECT_SPEED = 8
 
 DRAW_LINES = False
@@ -28,6 +31,7 @@ ground_img = pygame.transform.scale2x(pygame.image.load(os.path.join("assets", "
 
 SCREEN = pygame.display.set_mode((SCREEN_WIDHT, SCREEN_HEIGHT))
 gen = 0
+run = 1
 
 # Music
 wing = 'assets/audio/wing.wav'
@@ -188,6 +192,7 @@ class Pipe:
 class Base:
     IMG = ground_img
     WIDTH = IMG.get_width()
+
     HEIGHT = 100
 
     def __init__(self, y):
@@ -211,7 +216,6 @@ class Base:
 
         if self.x2 + self.WIDTH < 0:
             self.x2 = self.x1 + self.WIDTH
-
     def draw(self, win):
         """
         Draw the floor. This is two images that move together.
@@ -220,6 +224,8 @@ class Base:
         """
         win.blit(self.IMG, (self.x1, self.y))
         win.blit(self.IMG, (self.x2, self.y))
+
+
 
 
 def draw_window(win, birds, pipes, ground, score, pipe_ind):
@@ -274,6 +280,19 @@ def draw_window(win, birds, pipes, ground, score, pipe_ind):
 
     pygame.display.update()
 
+def get_next_results_index():
+    files = os.listdir("results")
+    numbers = []
+
+    for file in files:
+        match = re.search(r'(\d+)', file)
+        if match:
+            numbers.append(int(match.group(1)))
+
+    if numbers:
+        return max(numbers) + 1
+    else:
+        return 1
 
 def eval_genomes(genomes, config):
     """
@@ -373,8 +392,10 @@ def eval_genomes(genomes, config):
         draw_window(SCREEN, birds, pipes, base, score, pipe_ind)
 
         # Break current genome if score reaches 50 (next genome)
-        if score > 50:
+        if score > 10:
             # Save amount of birds survived
+            with open(f"results/{run}.txt", "a") as f:
+                f.write(f"Generation {gen - 1}: {len(birds)} birds survived\n")
             break
 
 
@@ -393,10 +414,26 @@ def run(config_path):
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
 
-    winner = p.run(eval_genomes, 50)
+    global run
+    run = get_next_results_index()
+
+    winner = p.run(eval_genomes, 10)
+
+    # Plot data from results
+    with open(f"results/{run}.txt", "r") as f:
+        data = f.read().split("\n")
+        data = [line for line in data if line != ""]
+
+        birds_survived = [int(line.split(":")[1].split(" ")[1]) for line in data]
+
+        plt.plot(birds_survived)
+        plt.xlabel("Generation")
+        plt.xticks(ticks=range(len(birds_survived)), labels=[str(i) for i in range(1, len(birds_survived) + 1)])
+        plt.ylabel("Birds survived")
+        plt.title("Birds survived per generation")
+        plt.show()
 
     print(f"\nBest genome: {winner}")
-
 
 if __name__ == "__main__":
     local_dir = os.path.dirname(__file__)
