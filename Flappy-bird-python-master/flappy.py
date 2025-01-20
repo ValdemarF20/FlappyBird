@@ -12,10 +12,8 @@ STAT_FONT = pygame.font.SysFont("comicsans", 50)
 SCREEN_WIDHT = 600
 SCREEN_HEIGHT = 800
 FLOOR = 730
-GROUND_WIDHT = 2 * SCREEN_WIDHT
-GROUND_HEIGHT = 100
 GAME_TICK_SPEED = 30
-OBJECT_SPEED = 5
+OBJECT_SPEED = 8
 
 DRAW_LINES = False
 
@@ -43,14 +41,14 @@ class Bird:
 
     def __init__(self, x, y):
         self.images = blue_bird_images
-        self.image_counter = 0
+        self.image_counter = 0 # Used for changing color
         self.x = x
         self.y = y
         self.tilt = 0  # degrees to tilt
         self.tick_count = 0
         self.speed = 0
         self.height = self.y
-        self.img_count = 0
+        self.img_count = 0 # Used for animations
         self.current_image = self.images[0]
 
     def move(self):
@@ -111,14 +109,10 @@ class Bird:
             self.img_count = self.ANIMATION_TIME * 2
 
         # tilt the bird
-        blitRotateCenter(win, self.current_image, (self.x, self.y), self.tilt)
+        rotated_image = pygame.transform.rotate(self.current_image, self.tilt)
+        new_rect = rotated_image.get_rect(center=self.current_image.get_rect(topleft=(self.x, self.y)).center)
 
-    def get_mask(self):
-        """
-        gets the mask for the current image of the bird
-        :return: None
-        """
-        return pygame.mask.from_surface(self.current_image)
+        win.blit(rotated_image, new_rect.topleft)
 
     def next_image(self):
         if self.image_counter % 3 == 0:
@@ -128,6 +122,10 @@ class Bird:
         else:
             self.images = blue_bird_images
         self.image_counter += 1
+
+    def get_mask(self):
+        return pygame.mask.from_surface(self.current_image)
+
 
 pipe_counter = 0
 class Pipe:
@@ -171,33 +169,35 @@ class Pipe:
         win.blit(self.top, (self.x, self.top_height))
         win.blit(self.bottom, (self.x, self.bottom_height))
 
-    def collide(self, bird, win):
+    def collide(self, bird):
         bird_mask = bird.get_mask()
         top_mask = pygame.mask.from_surface(self.top)
         bottom_mask = pygame.mask.from_surface(self.bottom)
         top_offset = (self.x - bird.x, self.top_height - round(bird.y))
         bottom_offset = (self.x - bird.x, self.bottom_height - round(bird.y))
 
-        b_point = bird_mask.overlap(bottom_mask, bottom_offset)
-        t_point = bird_mask.overlap(top_mask, top_offset)
+        bird_bottom_point = bird_mask.overlap(bottom_mask, bottom_offset)
+        bird_point = bird_mask.overlap(top_mask, top_offset)
 
-        if b_point or t_point:
+        if bird_bottom_point or bird_point:
             return True # Collision detected
 
         return False # No collision detected
 
 
-class Ground:
-    WIDTH = ground_img.get_width()
+class Base:
     IMG = ground_img
+    WIDTH = IMG.get_width()
+    HEIGHT = 100
 
     def __init__(self, y):
         self.image = pygame.image.load('assets/sprites/base.png').convert_alpha()
-        self.image = pygame.transform.scale(self.image, (GROUND_WIDHT, GROUND_HEIGHT))
+        # Upscale the image
+        self.image = pygame.transform.scale(self.image, (self.WIDTH, self.HEIGHT))
 
         self.y = y
-        self.x1 = 0
-        self.x2 = self.WIDTH
+        self.x1 = 0 # Left side base
+        self.x2 = self.WIDTH # Right side base
 
     def update(self):
         """
@@ -220,21 +220,6 @@ class Ground:
         """
         win.blit(self.IMG, (self.x1, self.y))
         win.blit(self.IMG, (self.x2, self.y))
-
-
-def blitRotateCenter(surf, image, topleft, angle):
-    """
-    Rotate a surface and blit it to the window
-    :param surf: the surface to blit to
-    :param image: the image surface to rotate
-    :param topleft: the top left position of the image
-    :param angle: a float value for angle
-    :return: None
-    """
-    rotated_image = pygame.transform.rotate(image, angle)
-    new_rect = rotated_image.get_rect(center=image.get_rect(topleft=topleft).center)
-
-    surf.blit(rotated_image, new_rect.topleft)
 
 
 def draw_window(win, birds, pipes, ground, score, pipe_ind):
@@ -297,7 +282,6 @@ def eval_genomes(genomes, config):
     reach in the game.
     """
     global SCREEN, gen
-    win = SCREEN
     gen += 1
 
     # start by creating lists holding the genome itself, the
@@ -314,25 +298,24 @@ def eval_genomes(genomes, config):
         birds.append(Bird(230, 350))
         ge.append(genome)
 
-    base = Ground(FLOOR)
+    base = Base(FLOOR)
     pipes = [Pipe(700)]
     score = 0
 
     clock = pygame.time.Clock()
 
-    run = True
-    while run and len(birds) > 0:
+    run_genome = True
+    while run_genome and len(birds) > 0:
         clock.tick(GAME_TICK_SPEED)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                run = False
+                run_genome = False
                 pygame.quit()
                 quit()
 
         pipe_ind = 0
         if len(birds) > 0:
-            # pipes[1] = PIPE_TOP?
             if len(pipes) > 1 and birds[0].x > pipes[0].x + pipes[0].top.get_width():  # determine whether to use the first or second
                 pipe_ind = 1  # pipe on the screen for neural network input
 
@@ -349,14 +332,13 @@ def eval_genomes(genomes, config):
 
         base.update()
 
-        rem = []
+        rem = [] # Pipes to remove
         add_pipe = False
         for pipe in pipes:
             pipe.update()
             # check for collision
             for bird in birds:
-                #if pygame.sprite.collide_rect(pipe, bird): win?
-                if pipe.collide(bird, win):
+                if pipe.collide(bird):
                     ge[birds.index(bird)].fitness -= 1
                     nets.pop(birds.index(bird))
                     ge.pop(birds.index(bird))
@@ -372,9 +354,9 @@ def eval_genomes(genomes, config):
                     bird.next_image()
 
 
+        # Add larger reward for passing through a pipe
         if add_pipe:
             score += 1
-            # can add this line to give more reward for passing through a pipe (not required)
             for genome in ge:
                 genome.fitness += 5
             pipes.append(Pipe(SCREEN_WIDHT))
@@ -390,15 +372,20 @@ def eval_genomes(genomes, config):
 
         draw_window(SCREEN, birds, pipes, base, score, pipe_ind)
 
-        # break if score gets large enough
-        '''if score > 20:
-            pickle.dump(nets[0],open("best.pickle", "wb"))
-            break'''
+        # Break current genome if score reaches 50 (next genome)
+        if score > 50:
+            # Save amount of birds survived
+            break
 
 
 def run(config_path):
-    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet,
-                                neat.DefaultStagnation, config_path)
+    config = neat.config.Config(
+        neat.DefaultGenome,
+        neat.DefaultReproduction,
+        neat.DefaultSpeciesSet,
+        neat.DefaultStagnation,
+        config_path
+    )
 
     p = neat.Population(config)
 
@@ -407,6 +394,8 @@ def run(config_path):
     p.add_reporter(stats)
 
     winner = p.run(eval_genomes, 50)
+
+    print(f"\nBest genome: {winner}")
 
 
 if __name__ == "__main__":
