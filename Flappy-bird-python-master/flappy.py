@@ -5,7 +5,6 @@ import re
 import matplotlib.pyplot as plt
 import neat
 import pygame
-import numpy as np
 
 pygame.init()
 
@@ -15,7 +14,7 @@ STAT_FONT = pygame.font.SysFont("comicsans", 50)
 SCREEN_WIDHT = 600
 SCREEN_HEIGHT = 800
 FLOOR = 730
-GAME_TICK_SPEED = 120
+GAME_TICK_SPEED = 30
 OBJECT_SPEED = 8
 
 DRAW_LINES = False
@@ -391,8 +390,8 @@ def eval_genomes(genomes, config):
 
         draw_window(SCREEN, birds, pipes, base, score, pipe_ind)
 
-        # Break current genome if score reaches 50 (next genome)
-        if score > 10:
+        # Break current genome if score reaches 25 (next genome)
+        if score > 25:
             # Save amount of birds survived
             with open(f"results/{run}.txt", "a") as f:
                 f.write(f"Generation {gen - 1}: {len(birds)} birds survived\n")
@@ -417,7 +416,7 @@ def run(config_path):
     global run
     run = get_next_results_index()
 
-    winner = p.run(eval_genomes, 10)
+    winner = p.run(eval_genomes, 50)
 
     # Plot data from results
     with open(f"results/{run}.txt", "r") as f:
