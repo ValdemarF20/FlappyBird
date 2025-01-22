@@ -11,7 +11,8 @@ pygame.init()
 #VARIABLES
 pygame.font.init()
 STAT_FONT = pygame.font.SysFont("comicsans", 50)
-SCREEN_WIDHT = 600
+WIDTH_MULTIPLIER = 1.2
+SCREEN_WIDHT = 600 * WIDTH_MULTIPLIER # test 800
 SCREEN_HEIGHT = 800
 FLOOR = 730
 GAME_TICK_SPEED = 30
@@ -197,7 +198,7 @@ class Base:
     def __init__(self, y):
         self.image = pygame.image.load('assets/sprites/base.png').convert_alpha()
         # Upscale the image
-        self.image = pygame.transform.scale(self.image, (self.WIDTH, self.HEIGHT))
+        self.image = pygame.transform.scale(self.image, (self.WIDTH * WIDTH_MULTIPLIER, self.HEIGHT))
 
         self.y = y
         self.x1 = 0 # Left side base
@@ -293,6 +294,21 @@ def get_next_results_index():
     else:
         return 1
 
+def print_stats():
+    with open(f"results/{run}.txt", "r") as f:
+        data = f.read().split("\n")
+        data = [line for line in data if line != ""]
+
+        birds_survived = [int(line.split(":")[1].split(" ")[1]) for line in data]
+
+        plt.plot(birds_survived)
+        plt.xlabel("Generation")
+        plt.xticks(ticks=range(len(birds_survived)), labels=[str(i) for i in range(1, len(birds_survived) + 1)])
+        plt.ylabel("Birds survived")
+        plt.title("Birds survived per generation")
+        plt.show()
+
+
 def eval_genomes(genomes, config):
     """
     runs the simulation of the current population of
@@ -302,9 +318,6 @@ def eval_genomes(genomes, config):
     global SCREEN, gen
     gen += 1
 
-    # start by creating lists holding the genome itself, the
-    # neural network associated with the genome and the
-    # bird object that uses that network to play
     nets = []
     birds = []
     ge = []
@@ -322,6 +335,7 @@ def eval_genomes(genomes, config):
 
     clock = pygame.time.Clock()
 
+    # Run simulation until all birds are dead or score reaches 25
     run_genome = True
     while run_genome and len(birds) > 0:
         clock.tick(GAME_TICK_SPEED)
@@ -334,18 +348,17 @@ def eval_genomes(genomes, config):
 
         pipe_ind = 0
         if len(birds) > 0:
-            if len(pipes) > 1 and birds[0].x > pipes[0].x + pipes[0].top.get_width():  # determine whether to use the first or second
-                pipe_ind = 1  # pipe on the screen for neural network input
+            if len(pipes) > 1 and birds[0].x > pipes[0].x + pipes[0].top.get_width():
+                pipe_ind = 1 # The pipe used for NEAT to decide action
 
-        for x, bird in enumerate(birds):  # give each bird a fitness of 0.1 for each frame it stays alive
+        for x, bird in enumerate(birds):
             ge[x].fitness += 0.1
             bird.move()
 
-            # send bird location, top pipe location and bottom pipe location and determine from network whether to jump or not
             output = nets[birds.index(bird)].activate(
                 (bird.y, abs(bird.y - pipes[pipe_ind].height), abs(bird.y - pipes[pipe_ind].bottom_height)))
 
-            if output[0] > 0.5:  # we use a tanh activation function so result will be between -1 and 1. if over 0.5 jump
+            if output[0] > 0.5:
                 bird.bump()
 
         base.update()
@@ -376,7 +389,7 @@ def eval_genomes(genomes, config):
         if add_pipe:
             score += 1
             for genome in ge:
-                genome.fitness += 5
+                genome.fitness += 5 * (WIDTH_MULTIPLIER**3)
             pipes.append(Pipe(SCREEN_WIDHT))
 
         for r in rem:
@@ -391,12 +404,11 @@ def eval_genomes(genomes, config):
         draw_window(SCREEN, birds, pipes, base, score, pipe_ind)
 
         # Break current genome if score reaches 25 (next genome)
-        if score > 25:
+        if score > 50 or len(birds) == 0:
             # Save amount of birds survived
             with open(f"results/{run}.txt", "a") as f:
                 f.write(f"Generation {gen - 1}: {len(birds)} birds survived\n")
             break
-
 
 def run(config_path):
     config = neat.config.Config(
@@ -416,21 +428,17 @@ def run(config_path):
     global run
     run = get_next_results_index()
 
-    winner = p.run(eval_genomes, 50)
+    # Get time it took to run the program in seconds
+    start_time = pygame.time.get_ticks()
+    winner = p.run(eval_genomes, 1000)
+    end_time = pygame.time.get_ticks()
+    run_time = (end_time - start_time) / 1000
+    print(f"\nTime to run program: {run_time} seconds")
+    # write to results file
+    with open(f"results/{run}.txt", "a") as f:
+        f.write(f"Time to run program: {run_time} seconds\n")
 
-    # Plot data from results
-    with open(f"results/{run}.txt", "r") as f:
-        data = f.read().split("\n")
-        data = [line for line in data if line != ""]
-
-        birds_survived = [int(line.split(":")[1].split(" ")[1]) for line in data]
-
-        plt.plot(birds_survived)
-        plt.xlabel("Generation")
-        plt.xticks(ticks=range(len(birds_survived)), labels=[str(i) for i in range(1, len(birds_survived) + 1)])
-        plt.ylabel("Birds survived")
-        plt.title("Birds survived per generation")
-        plt.show()
+    print_stats()
 
     print(f"\nBest genome: {winner}")
 

@@ -1,9 +1,0 @@
-Generation 1: 1 birds survived
-Generation 2: 5 birds survived
-Generation 3: 7 birds survived
-Generation 4: 5 birds survived
-Generation 5: 3 birds survived
-Generation 6: 7 birds survived
-Generation 7: 7 birds survived
-Generation 8: 13 birds survived
-Generation 9: 14 birds survived
