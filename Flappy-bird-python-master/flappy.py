@@ -12,7 +12,7 @@ pygame.init()
 pygame.font.init()
 STAT_FONT = pygame.font.SysFont("comicsans", 50)
 WIDTH_MULTIPLIER = 1.2
-SCREEN_WIDHT = 600 * WIDTH_MULTIPLIER # test 800
+SCREEN_WIDHT = 600 * WIDTH_MULTIPLIER
 SCREEN_HEIGHT = 800
 FLOOR = 730
 GAME_TICK_SPEED = 30
