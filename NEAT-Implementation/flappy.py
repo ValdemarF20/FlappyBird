@@ -18,7 +18,7 @@ FLOOR = 730
 GAME_TICK_SPEED = 30
 OBJECT_SPEED = 8
 
-DRAW_LINES = False
+DRAW_LINES = True
 
 # Images
 background_day_img = pygame.transform.scale(pygame.image.load(os.path.join("assets", "sprites", "background-day.png")), (SCREEN_WIDHT, SCREEN_HEIGHT))
@@ -56,16 +56,10 @@ class Bird:
         self.current_image = self.images[0]
 
     def move(self):
-        """
-        make the bird move
-        :return: None
-        """
         self.tick_count += 1
 
-        # for downward acceleration
-        displacement = self.speed * self.tick_count + 0.5 * 3 * self.tick_count ** 2  # calculate displacement
+        displacement = self.speed * self.tick_count + 0.5 * 3 * self.tick_count ** 2
 
-        # terminal velocity
         if displacement >= 16:
             displacement = (displacement / abs(displacement)) * 16
 
@@ -87,14 +81,8 @@ class Bird:
         self.height = self.y
 
     def draw(self, win):
-        """
-        draw the bird
-        :param win: pygame window or surface
-        :return: None
-        """
         self.img_count += 1
 
-        # For animation of bird, loop through three images
         if self.img_count <= self.ANIMATION_TIME:
             self.current_image = self.images[0]
         elif self.img_count <= self.ANIMATION_TIME * 2:
@@ -107,12 +95,10 @@ class Bird:
             self.current_image = self.images[0]
             self.img_count = 0
 
-        # so when bird is nose diving it isn't flapping
         if self.tilt <= -80:
             self.current_image = self.images[1]
             self.img_count = self.ANIMATION_TIME * 2
 
-        # tilt the bird
         rotated_image = pygame.transform.rotate(self.current_image, self.tilt)
         new_rect = rotated_image.get_rect(center=self.current_image.get_rect(topleft=(self.x, self.y)).center)
 
@@ -184,9 +170,9 @@ class Pipe:
         bird_point = bird_mask.overlap(top_mask, top_offset)
 
         if bird_bottom_point or bird_point:
-            return True # Collision detected
+            return True
 
-        return False # No collision detected
+        return False
 
 
 class Base:
@@ -197,18 +183,13 @@ class Base:
 
     def __init__(self, y):
         self.image = pygame.image.load('assets/sprites/base.png').convert_alpha()
-        # Upscale the image
         self.image = pygame.transform.scale(self.image, (self.WIDTH * WIDTH_MULTIPLIER, self.HEIGHT))
 
         self.y = y
-        self.x1 = 0 # Left side base
-        self.x2 = self.WIDTH # Right side base
+        self.x1 = 0
+        self.x2 = self.WIDTH
 
     def update(self):
-        """
-                move floor so it looks like its scrolling
-                :return: None
-                """
         self.x1 -= OBJECT_SPEED
         self.x2 -= OBJECT_SPEED
         if self.x1 + self.WIDTH < 0:
@@ -217,29 +198,10 @@ class Base:
         if self.x2 + self.WIDTH < 0:
             self.x2 = self.x1 + self.WIDTH
     def draw(self, win):
-        """
-        Draw the floor. This is two images that move together.
-        :param win: the pygame surface/window
-        :return: None
-        """
         win.blit(self.IMG, (self.x1, self.y))
         win.blit(self.IMG, (self.x2, self.y))
 
-
-
-
 def draw_window(win, birds, pipes, ground, score, pipe_ind):
-    """
-    draws the windows for the main game loop
-    :param win: pygame window surface
-    :param birds: a Bird object
-    :param pipes: List of pipes
-    :param ground: Ground object
-    :param score: score of the game (int)
-    :param gen: current generation
-    :param pipe_ind: index of closest pipe
-    :return: None
-    """
     global gen
     if gen == 0:
         gen = 1
@@ -250,20 +212,6 @@ def draw_window(win, birds, pipes, ground, score, pipe_ind):
 
     ground.draw(win)
     for bird in birds:
-        # draw lines from bird to pipe
-        if DRAW_LINES:
-            try:
-                pygame.draw.line(win, (255, 0, 0),
-                                 (bird.x + bird.current_image.get_width() / 2, bird.y + bird.current_image.get_height() / 2),
-                                 (pipes[pipe_ind].x + pipes[pipe_ind].PIPE_TOP.get_width() / 2, pipes[pipe_ind].height),
-                                 5)
-                pygame.draw.line(win, (255, 0, 0),
-                                 (bird.x + bird.current_image.get_width() / 2, bird.y + bird.current_image.get_height() / 2),
-                                 (pipes[pipe_ind].x + pipes[pipe_ind].PIPE_BOTTOM.get_width() / 2, pipes[pipe_ind].bottom),
-                                 5)
-            except:
-                pass
-        # draw bird
         bird.draw(win)
 
     # score
@@ -310,11 +258,6 @@ def print_stats():
 
 
 def eval_genomes(genomes, config):
-    """
-    runs the simulation of the current population of
-    birds and sets their fitness based on the distance they
-    reach in the game.
-    """
     global SCREEN, gen
     gen += 1
 
